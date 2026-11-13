@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Update the GE Hub</title>
+<style>
+  :root{--bg:#f2f2f0;--card:#fff;--ink:#1a1a1a;--muted:#6b6b6b;--line:#e4e4e1;--head:#1a1a1a;--gold:#c9a84c;--gold-soft:#f5e9c8;--gold-ink:#7a5c1e;--red:#b42318;--red-bg:#fee4e2;--grn:#067647;--grn-bg:#d1fadf;--org-bg:#fef0c7;--org:#b54708}
+  @media (prefers-color-scheme: dark){:root{--bg:#121212;--card:#1c1c1c;--ink:#f0eee8;--muted:#a3a29c;--line:#2f2f2d;--head:#0b0b0b;--gold:#d8b95a;--gold-soft:#3a3118;--gold-ink:#e8d08a;--red:#ff8a80;--red-bg:#3b1714;--grn:#6ee7a8;--grn-bg:#10321f;--org-bg:#3a2a0d;--org:#ffb757}}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;padding:16px}
+  .wrap{max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  .hero{background:var(--head);color:#fff;border-radius:14px;padding:18px 22px}
+  .hero h1{font-size:20px;font-weight:500}.hero h1 span{color:var(--gold)}
+  .hero p{color:rgba(255,255,255,.6);font-size:13px;margin-top:4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .step{display:flex;gap:12px}
+  .num{flex:0 0 26px;height:26px;border-radius:50%;background:var(--gold-soft);color:var(--gold-ink);font-weight:600;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .step h2{font-size:14px;font-weight:600;margin-bottom:4px}
+  .muted{color:var(--muted);font-size:12.5px}
+  input[type=password],input[type=text]{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);margin-top:8px}
+  label.chk{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px}
+  .drop{border:2px dashed var(--gold);border-radius:12px;padding:26px 14px;text-align:center;margin-top:8px;cursor:pointer;background:var(--gold-soft);color:var(--gold-ink);font-weight:500}
+  .drop.over{background:var(--gold);color:#1a1a1a}
+  button.go{margin-top:10px;background:var(--head);color:var(--gold);border:none;border-radius:999px;padding:11px 22px;font:inherit;font-weight:600;cursor:pointer}
+  button.go:disabled{opacity:.4;cursor:not-allowed}
+  .sum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+  .sum div{background:var(--bg);border-radius:10px;padding:8px 10px}.sum b{display:block;font-size:20px;font-weight:600}.sum span{font-size:11.5px;color:var(--muted)}
+  .msg{border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13px}
+  .ok{background:var(--grn-bg);color:var(--grn)}.bad{background:var(--red-bg);color:var(--red)}.warn{background:var(--org-bg);color:var(--org)}
+  ul.w{margin:8px 0 0 18px;font-size:12.5px;color:var(--muted)}
+  @media (max-width:560px){.sum{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero"><h1>Update the GE Hub <span>✦</span></h1><p>Drop in the latest tracker, check the numbers, publish.</p></div>
+
+  <div class="card step"><div class="num">1</div><div style="flex:1">
+    <h2>Your GitHub token</h2>
+    <div class="muted">Paste it once. It never leaves your browser except to talk to GitHub. It needs <b>Contents: Read and write</b> on this repo.</div>
+    <input type="password" id="token" placeholder="github_pat_…" autocomplete="off">
+    <label class="chk"><input type="checkbox" id="remember"> Remember it on this computer</label>
+    <input type="text" id="repo" value="marygracemoralestls-source/GEHUB" aria-label="Repository">
+  </div></div>
+
+  <div class="card step"><div class="num">2</div><div style="flex:1">
+    <h2>The latest tracker</h2>
+    <div class="muted">In Excel on the web: <b>File → Save As → Download a Copy</b>, then drop the downloaded file here.</div>
+    <div class="drop" id="drop">Drop the .xlsx here, or click to choose it</div>
+    <input type="file" id="file" accept=".xlsx,.xlsm" hidden>
+    <label class="chk"><input type="checkbox" id="names" checked> Include guest names</label>
+    <div id="summary"></div>
+  </div></div>
+
+  <div class="card step"><div class="num">3</div><div style="flex:1">
+    <h2>Publish</h2>
+    <div class="muted">The hub shows the new data about a minute after publishing.</div>
+    <button class="go" id="publish" disabled>Publish to the hub</button>
+    <div id="result"></div>
+  </div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const DAYS_BACK=14, ENDORSEMENT_DAYS_BACK=30, DUTY_DAYS_AHEAD=21;
+const ZONE_TABS=[["East","East"],["Kamala Beach","Kamala Beach"],["Samsara","Samsara & North Phuket"],["Samui","Samui & Natai"],["Millionaires","Millionaires Mile"]];
+const MONTHS=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+const pad=n=>n<10?"0"+n:""+n;
+const text=v=>v==null?"":String(v).replace(/\s+/g," ").trim();
+const isoDay=d=>d.toISOString().slice(0,10);
+
+function toIso(v){
+  if(typeof v==="string"){
+    const s=v.trim();
+    let m=/(\d{1,2})[\s\-\/]([A-Za-z]{3})[A-Za-z]*[\s\-\/,]*(\d{4})/.exec(s);
+    if(m&&MONTHS.includes(m[2].toLowerCase()))return m[3]+"-"+pad(MONTHS.indexOf(m[2].toLowerCase())+1)+"-"+pad(+m[1]);
+    m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+    if(m)return m[3]+"-"+pad(+m[2])+"-"+pad(+m[1]);
+    return "";
+  }
+  if(typeof v!=="number"||v<30000||v>80000)return "";
+  return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10);
+}
+function redact(b){
+  const p=b.split(" - "); if(p.length<3)return b;
+  const last=p[p.length-1], ref=/^[#A-Za-z0-9\-]{6,}$/.test(last.replace(/\s*\(.*\)$/,""));
+  return p.slice(0,2).join(" - ")+(ref&&p.length>3?" - "+last:"");
+}
+function grid(ws){
+  const ref=ws["!ref"]; if(!ref)return {rows:[],r0:0,c0:0};
+  const rg=XLSX.utils.decode_range(ref);
+  return {rows:XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:"",range:ref}),r0:rg.s.r,c0:rg.s.c};
+}
+function linkOf(ws,g,r,c){
+  const cell=ws[XLSX.utils.encode_cell({r:g.r0+r,c:g.c0+c})]; if(!cell)return "";
+  if(cell.l&&cell.l.Target)return cell.l.Target;
+  const m=/HYPERLINK\(\s*"([^"]+)"/i.exec(String(cell.f||"")); return m?m[1]:"";
+}
+function findSheet(wb,name){const n=wb.SheetNames.find(x=>x.trim().toLowerCase()===name.toLowerCase());return n?wb.Sheets[n]:null}
+
+function buildData(wb,includeNames){
+  const now=Date.now(), cutoff=isoDay(new Date(now-DAYS_BACK*864e5)), endCut=isoDay(new Date(now-ENDORSEMENT_DAYS_BACK*864e5));
+  const arrivals=[],endorsements=[],warnings=[];
+  for(const name of wb.SheetNames){
+    const z=ZONE_TABS.find(t=>name.startsWith(t[0])); if(!z)continue;
+    const ws=wb.Sheets[name], g=grid(ws);
+    for(let r=1;r<g.rows.length;r++){
+      const row=g.rows[r], arrival=toIso(row[4]);
+      if(!arrival||arrival<cutoff||!text(row[2]))continue;
+      const departure=toIso(row[5]);
+      if(!departure||departure<arrival)warnings.push(z[1]+" row "+(g.r0+r+1)+": check departure date ("+text(row[2]).slice(0,40)+")");
+      const booking=text(row[2]);
+      arrivals.push({zone:z[1],cross:text(row[0]),airbnb:text(row[1])!=="",booking:includeNames?booking:redact(booking),
+        iti:linkOf(ws,g,r,2),crm:linkOf(ws,g,r,3),arrival,departure,
+        transfer:text(row[7]),meals:text(row[8]),other:text(row[9]),wol:text(row[10]),fi:text(row[11]),welcome:text(row[12]),feedback:text(row[13]),notes:text(row[14])});
+    }
+  }
+  arrivals.sort((a,b)=>(a.arrival+a.zone).localeCompare(b.arrival+b.zone));
+  const ews=findSheet(wb,"Endorsement");
+  if(ews){
+    const g=grid(ews);
+    for(let r=1;r<g.rows.length;r++){const row=g.rows[r],arrival=toIso(row[1]);
+      if(!text(row[0])||!arrival||arrival<endCut)continue;
+      endorsements.push({ref:includeNames?text(row[0]):redact(text(row[0])),arrival,task:text(row[3]),status:text(row[4])||"None",notes:[text(row[5]),text(row[6])].filter(Boolean).join(" ")});}
+    endorsements.sort((a,b)=>a.arrival.localeCompare(b.arrival));
+  } else warnings.push("No tab named Endorsement was found.");
+  const duty={duties:[],days:[]}, dws=findSheet(wb,"Duty");
+  if(dws){
+    const g=grid(dws), head=(g.rows[0]||[]).slice(1).map(text);
+    while(head.length&&head[head.length-1]==="")head.pop();
+    duty.duties=head;
+    const lo=isoDay(new Date(now-864e5)), hi=isoDay(new Date(now+DUTY_DAYS_AHEAD*864e5));
+    for(let r=1;r<g.rows.length;r++){const d=toIso(g.rows[r][0]); if(d&&d>=lo&&d<=hi)duty.days.push({date:d,who:head.map((_,i)=>text(g.rows[r][i+1]))});}
+    duty.days.sort((a,b)=>a.date.localeCompare(b.date));
+  } else warnings.push("No tab named DUTY was found.");
+  return {generatedAt:new Date().toISOString().slice(0,19)+"Z",duty,arrivals,endorsements,warnings};
+}
+
+/* ---------- page ---------- */
+let current=null, lastBuf=null;
+const tokEl=$("#token"), remEl=$("#remember");
+try{const t=localStorage.getItem("gehub_token"); if(t){tokEl.value=t;remEl.checked=true}}catch(e){}
+function show(el,cls,html){el.innerHTML='<div class="msg '+cls+'">'+html+'</div>'}
+const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+function readFile(f){
+  $("#result").innerHTML="";
+  const fr=new FileReader();
+  fr.onload=()=>{lastBuf=fr.result; process();};
+  fr.onerror=()=>show($("#summary"),"bad","Couldn’t read that file.");
+  fr.readAsArrayBuffer(f);
+}
+function process(){
+  try{
+    const wb=XLSX.read(lastBuf,{type:"array",cellFormula:true,cellDates:false});
+    current=buildData(wb,$("#names").checked);
+    const d=current, w=d.warnings;
+    $("#summary").innerHTML='<div class="sum"><div><b>'+d.arrivals.length+'</b><span>bookings</span></div><div><b>'+d.endorsements.length+'</b><span>handover tasks</span></div><div><b>'+d.duty.days.length+'</b><span>duty days</span></div><div><b>'+w.length+'</b><span>to fix in tracker</span></div></div>'
+      +(d.duty.days.length===0?'<div class="msg warn">No duty days found. Check the DUTY tab (dates in column A, names in B to E).</div>':'')
+      +(d.arrivals.length===0?'<div class="msg bad">No bookings found. Is this the GE Tracker?</div>':'')
+      +(w.length?'<ul class="w">'+w.slice(0,6).map(x=>"<li>"+esc(x)+"</li>").join("")+(w.length>6?"<li>…and "+(w.length-6)+" more</li>":"")+"</ul>":"");
+    $("#publish").disabled=d.arrivals.length===0;
+  }catch(e){current=null;$("#publish").disabled=true;show($("#summary"),"bad","That doesn’t look like an Excel file I can read. ("+esc(e.message)+")")}
+}
+$("#names").addEventListener("change",()=>{if(lastBuf)process()});
+const drop=$("#drop"), fileEl=$("#file");
+drop.addEventListener("click",()=>fileEl.click());
+fileEl.addEventListener("change",()=>fileEl.files[0]&&readFile(fileEl.files[0]));
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0]; if(f)readFile(f)});
+
+const b64=s=>btoa(unescape(encodeURIComponent(s)));
+async function gh(path,opts){
+  const repo=$("#repo").value.trim(), token=tokEl.value.trim();
+  return fetch("https://api.github.com/repos/"+repo+"/contents/"+path,Object.assign({headers:{Authorization:"Bearer "+token,Accept:"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"}},opts,{}));
+}
+$("#publish").addEventListener("click",async()=>{
+  const out=$("#result"), btn=$("#publish");
+  if(!current)return;
+  if(!tokEl.value.trim()){show(out,"bad","Paste your GitHub token in step 1 first.");return}
+  btn.disabled=true; show(out,"warn","Publishing…");
+  try{
+    try{ if(remEl.checked)localStorage.setItem("gehub_token",tokEl.value.trim()); else localStorage.removeItem("gehub_token"); }catch(e){}
+    current.generatedAt=new Date().toISOString().slice(0,19)+"Z";
+    const g=await gh("data.json?ref=main");
+    let sha; if(g.ok){sha=(await g.json()).sha} else if(g.status!==404){throw new Error(g.status===401||g.status===403?"GitHub didn’t accept the token (code "+g.status+"). Check it has Contents: Read and write on this repo.":"GitHub answered "+g.status)}
+    const body={message:"Update data.json",content:b64(JSON.stringify(current)),branch:"main"}; if(sha)body.sha=sha;
+    const p=await gh("data.json",{method:"PUT",body:JSON.stringify(body)});
+    if(!p.ok){throw new Error(p.status===401||p.status===403?"GitHub didn’t accept the token (code "+p.status+"). Check it has Contents: Read and write on this repo.":"GitHub answered "+p.status+" when saving.")}
+    show(out,"ok","Published at "+new Date().toLocaleTimeString()+". The hub will show it in about a minute.");
+  }catch(e){show(out,"bad",esc(e.message))}
+  btn.disabled=false;
+});
+</script>
+</body>
+</html>
